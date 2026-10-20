@@ -188,20 +188,22 @@ D. `@State` শুধু ক্লাসে কাজ করে
 
 ## Short answer
 
-**Q1. When do you choose `let` over `var`?**  
-Use `let` for every binding that is not intentionally mutated. It documents intent, keeps struct values from accidental mutation, and lets the compiler enforce single assignment. Performance gain is usually small. The real win is correctness. I only reach for `var` when the value must change, including `lazy var`, loop variables, and property wrappers such as `@State`.
+# 1. Variables ও Constants
 
-**Q2. Does `let` make an object immutable?**  
-It makes the binding immutable. For a struct, that freezes stored properties, so the value cannot change. For a class, the reference stays fixed and `var` properties can still change. If the struct holds a class, copying the struct copies the reference. Immutability is not deep unless the whole object graph is value types or the class itself exposes no mutation.
+**প্রশ্ন ১. কখন `let` ব্যবহার করবেন, কখন `var`?**  
+যে বাইন্ডিং ইচ্ছাকৃতভাবে বদলাবে না, সেখানে `let` ব্যবহার করুন। এতে উদ্দেশ্য স্পষ্ট থাকে, struct-এর মান ভুল করে বদলানো যায় না, এবং কম্পাইলার নিশ্চিত করে যে অ্যাসাইনমেন্ট একবারই হয়েছে। পারফরম্যান্সে লাভ সাধারণত সামান্য। আসল লাভ সঠিকতা। `var` তখনই ব্যবহার করুন, যখন মান সত্যিই বদলাতে হবে। যেমন `lazy var`, লুপ ভেরিয়েবল, এবং `@State`-এর মতো প্রপার্টি র‍্যাপার।
 
-**Q3. Why is `lazy var` unsafe to share across threads, while a `static let` is safe?**  
-`lazy var` checks and stores the value without a synchronization guarantee, so two threads can both see it as uninitialized and run the initializer. Global and static stored properties are initialized once, lazily, under the runtime’s `once` token. For expensive shared state I use `static let`, or a lock if it truly must be a `lazy var`.
+**প্রশ্ন ২. `let` কি অবজেক্টকে অপরিবর্তনীয় করে?**  
+`let` বাইন্ডিংকে অপরিবর্তনীয় করে। struct হলে স্টোরড প্রপার্টি আর বদলায় না, তাই পুরো ভ্যালু স্থির থাকে। ক্লাস হলে রেফারেন্স স্থির থাকে, কিন্তু তার `var` প্রপার্টি বদলানো যায়। struct-এর ভিতরে ক্লাস থাকলে struct কপি হলেও সেই ক্লাসের রেফারেন্স শেয়ার হয়। পুরো অবজেক্ট গ্রাফ ভ্যালু টাইপ না হলে, বা ক্লাস নিজে মিউটেশন না দিলে, ইমিউটেবিলিটি গভীর হয় না।
 
-**Q4. What does a capture list copy?**  
-`{ [name] in }` evaluates `name` when the closure is created and stores that copy. A `let` or a value type gives the closure an independent value. A class instance copies the reference, so later mutations of the object are still visible. `[weak self]` is the same mechanism used to avoid a retain cycle.
+**প্রশ্ন ৩. থ্রেডের মধ্যে শেয়ার করলে `lazy var` অনিরাপদ, আর `static let` নিরাপদ কেন?**  
+`lazy var` সিঙ্ক্রোনাইজেশন ছাড়াই চেক করে ও মান বসায়। দুই থ্রেড একসাথে দেখতে পারে যে এখনো ইনিশিয়ালাইজ হয়নি, তারপর দুইজনই ইনিশিয়ালাইজার চালায়। গ্লোবাল ও `static` স্টোরড প্রপার্টি রানটাইমের `once` টোকেন দিয়ে একবার, লেইজিলি ইনিশিয়ালাইজ হয়। দামি শেয়ারড স্টেটের জন্য `static let` ব্যবহার করুন। সত্যিই `lazy var` লাগলে নিজের লক দিন।
 
-**Q5. How is `inout` different from `var`?**  
-A normal parameter is a local constant. To edit a copy I introduce a local `var`. `inout` passes a mutable memory location: the function writes back to the caller’s variable. The caller must pass a `var` with `&`. `inout` is not “pass the object by reference” for classes. Classes are already references. `inout` on a class parameter rebinds the caller’s variable.
+**প্রশ্ন ৪. ক্যাপচার লিস্ট কী কপি করে?**  
+`{ [name] in }` ক্লোজার তৈরির সময় `name` ইভ্যালুয়েট করে সেই কপি রেখে দেয়। `let` বা ভ্যালু টাইপ হলে ক্লোজার আলাদা একটি মান পায়। ক্লাস ইনস্ট্যান্স হলে রেফারেন্স কপি হয়, তাই পরে অবজেক্ট বদলালে ক্লোজার সেই বদল দেখে। `[weak self]` একই পদ্ধতিতে রিটেইন সাইকেল এড়ায়।
+
+**প্রশ্ন ৫. `inout` আর `var` কীভাবে আলাদা?**  
+সাধারণ প্যারামিটার একটি লোকাল কনস্ট্যান্ট। কপি এডিট করতে ভিতরে `var` বানাতে হয়। `inout` একটি মিউটেবল মেমরি লোকেশন পাঠায়। ফাংশন কলারের ভেরিয়েবলে লিখে দেয়। কলারকে `var` পাস করতে হয়, সামনে `&` দিয়ে। ক্লাসের জন্য `inout` মানে “অবজেক্ট রেফারেন্স হিসেবে পাঠানো” নয়। ক্লাস নিজেই রেফারেন্স। ক্লাস প্যারামিটারে `inout` দিলে কলারের ভেরিয়েবল কোন অবজেক্টকে ধরবে, সেটা বদলায়।
 
 ---
 
@@ -375,25 +377,23 @@ D. ডট থাকলে `hasSuffix` কাজ করে না
 
 ## Short answer
 
-**Q1. Why is `String.count` O(n), and why is there no integer subscript?**  
-Characters are extended grapheme clusters with variable width in UTF-8. The fifth character can start at many different byte offsets, so the string has to walk from the start. `String` is a `BidirectionalCollection`, and it is not random-access. An index from another string is invalid and traps at runtime. To move, use `index(after:)`, `index(_:offsetBy:)`, or `index(_:offsetBy:limitedBy:)`.
+**প্রশ্ন ১. `String.count` কেন O(n), আর ইন্টিজার সাবস্ক্রিপ্ট কেন নেই?**  
+`Character` হলো extended grapheme cluster। UTF-8-এ এর প্রস্থ স্থির নয়। পঞ্চম ক্যারেক্টার অনেক ভিন্ন বাইট অফসেটে শুরু হতে পারে, তাই স্ট্রিংকে শুরু থেকে হেঁটে আসতে হয়। `String` একটি `BidirectionalCollection`। এটা র‍্যান্ডম-অ্যাক্সেস নয়। অন্য স্ট্রিংয়ের ইন্ডেক্স অবৈধ, রানটাইমে ট্র্যাপ করে। এগোতে `index(after:)`, `index(_:offsetBy:)`, বা `index(_:offsetBy:limitedBy:)` ব্যবহার করুন।
 
-**Q2. What is the difference between `String.count` and `NSString.length`?**  
-`count` is the number of rendered characters, so a thumbs-up emoji counts as 1. `NSString.length` and `utf16.count` count UTF-16 code units, so that emoji is 2 and a flag can be 4. Mixing `NSRange` from `NSString` with a Swift `String.Index` is a common source of off-by-one bugs when bridging to Foundation or UIKit.
+**প্রশ্ন ২. `String.count` আর `NSString.length` কীভাবে আলাদা?**  
+`count` আঁকা ক্যারেক্টারের সংখ্যা। তাই থাম্বস-আপ ইমোজির `count` ১। `NSString.length` ও `utf16.count` UTF-16 কোড ইউনিট গোনে, তাই সেই ইমোজি ২, আর একটি ফ্ল্যাগ ৪ হতে পারে। Foundation বা UIKit-এ ব্রিজ করার সময় `NSString`-এর `NSRange` আর Swift-এর `String.Index` মেশালে অফ-বাই-ওয়ান বাগ হয়।
 
-**Q3. How does `String` stay a value type without copying on every assignment?**  
-Assignment copies the struct header and retains the same storage. Mutation checks uniqueness. If the buffer has a single owner, `append` grows it in place. If another variable still uses it, the string copies first, then mutates. That is copy-on-write. The same model is used by `Array`, `Dictionary`, and `Set`.
+**প্রশ্ন ৩. প্রতিবার অ্যাসাইনমেন্টে পুরো কপি না করে `String` কীভাবে ভ্যালু টাইপ থাকে?**  
+অ্যাসাইনমেন্টে struct-এর হেডার কপি হয় এবং একই স্টোরেজ রিটেইন হয়। মিউটেশনের সময় ইউনিক কি না, সেটা চেক হয়। বাফারের মালিক একজন হলে `append` জায়গাতেই বাড়ায়। অন্য ভেরিয়েবল সেই বাফার ব্যবহার করলে আগে কপি হয়, তারপর মিউটেশন হয়। এটার নাম copy-on-write। `Array`, `Dictionary`, `Set`-ও একই মডেল ব্যবহার করে।
 
-**Q4. When can `uppercased()` change the length, and when does locale matter?**  
-Unicode case folding is not one character to one character. German `ß` uppercases to `SS`. Turkish distinguishes dotless `ı` and dotted `İ`, so `uppercased(with:)` can disagree with the default locale. Use locale-aware APIs for user-facing search and sort. For identifiers, file extensions, and tokens, compare a locale-independent lowercase so results do not change with the device language.
+**প্রশ্ন ৪. `uppercased()` কখন দৈর্ঘ্য বদলায়, আর লোকেল কখন গুরুত্বপূর্ণ?**  
+Unicode-এর কেস ফোল্ডিং সবসময় এক ক্যারেক্টার থেকে এক ক্যারেক্টার নয়। জার্মান `ß` বড় হাতের অক্ষরে `SS` হয়। তুর্কি ভাষায় ডটবিহীন `ı` আর ডটযুক্ত `İ` আলাদা, তাই `uppercased(with:)` ডিফল্ট লোকেলের সাথে মিলবে না। ইউজার যা দেখে, সেই সার্চ ও সর্টে লোকেল-অ্যাওয়্যার API ব্যবহার করুন। আইডেন্টিফায়ার, ফাইল এক্সটেনশন, টোকেনে লোকেল-নিরপেক্ষ লোয়ারকেস ব্যবহার করুন, যাতে ডিভাইসের ভাষা বদলালে ফল না বদলায়।
 
-**Q5. Why should a stored property be `String` and not `Substring`?**  
-Slicing with `prefix`, `suffix`, or a range returns a `Substring` that shares the original buffer. Holding that slice keeps the entire original allocation alive. `String(sub)` detaches storage so the large source can be released. Slicing inside a function is fine. Store, return from your API, or use as a dictionary key only after turning it into a `String`.
+**প্রশ্ন ৫. স্টোরড প্রপার্টি `Substring` না রেখে `String` রাখবেন কেন?**  
+`prefix`, `suffix`, বা রেঞ্জ দিয়ে কাটলে `Substring` আসে, যা আসল বাফার শেয়ার করে। সেই স্লাইস ধরে রাখলে পুরো আসল অ্যালোকেশন মেমরিতে থাকে। `String(sub)` আলাদা স্টোরেজ বানায়, তারপর বড় সোর্স ছেড়ে দেওয়া যায়। ফাংশনের ভিতরে স্লাইস করা ঠিক আছে। প্রপার্টিতে রাখা, API থেকে রিটার্ন করা, বা ডিকশনারি কী বানানোর আগে `String`-এ বদলে নিন।
 
-**Q6. How do you build a large string efficiently?**  
-Use a `var` and `append`, and call `reserveCapacity` when the size is known. Repeated `text = text + chunk` can copy the growing buffer on each iteration. Interpolation (`"\(a) \(b)"`) is the normal choice for a fixed number of pieces. For many pieces, append into one mutable string.
-
-পুরো সংখ্যা (`Int`) — ইন্টারভিউ নোট (Google Doc-এ কপি করার জন্য)
+**প্রশ্ন ৬. বড় স্ট্রিং দক্ষভাবে কীভাবে বানাবেন?**  
+`var` নিন এবং `append` করুন। সাইজ জানা থাকলে `reserveCapacity` কল করুন। বারবার `text = text + chunk` করলে বাড়ন্ত বাফার প্রতি ধাপে কপি হতে পারে। টুকরোর সংখ্যা নির্দিষ্ট হলে ইন্টারপোলেশন (`"\(a) \(b)"`) যথেষ্ট। অনেক টুকরো হলে একটি মিউটেবল স্ট্রিংয়ে `append` করুন।
 
 # 3. Whole Numbers (`Int`)
 
@@ -609,20 +609,20 @@ D. কম্পাইলার অটো লক বসিয়ে দেয়
 
 ## Short answer
 
-**Q1. Why does Swift trap on integer overflow instead of wrapping?**  
-A wrong wrap becomes a later logic bug or a security bug. Swift’s default operators check the result and trap in debug and release, so the failure stays next to the bad arithmetic. When wrapping is the real spec, as in hashing or bit masks, use `&+`, `&-`, and `&*`. When the caller must decide, use `addingReportingOverflow` and read the overflow flag.
+**প্রশ্ন ১. Swift ইন্টিজার overflow-এ র‍্যাপ না করে ট্র্যাপ করে কেন?**  
+ভুল র‍্যাপ পরে লজিক বাগ বা সিকিউরিটি বাগে পরিণত হয়। Swift-এর সাধারণ অপারেটর ফল চেক করে এবং ডিবাগ ও রিলিজ দুই জায়গাতেই ট্র্যাপ করে, তাই ব্যর্থতা খারাপ অঙ্কের পাশেই ধরা পড়ে। হ্যাশ বা বিট মাস্কে র‍্যাপই স্পেক হলে `&+`, `&-`, `&*` ব্যবহার করুন। কলারকে সিদ্ধান্ত নিতে হলে `addingReportingOverflow` ব্যবহার করুন এবং overflow ফ্ল্যাগ পড়ুন।
 
-**Q2. What is the difference between `%` and a modulo operation?**  
-`%` is the remainder of division toward zero, and it keeps the sign of the left operand. `-9 % 2` is `-1`. Mathematical modulo for a positive divisor is never negative. Also, `Int.min % -1` traps because the quotient does not fit in `Int`. For a multiple check I use `isMultiple(of:)`. It returns `false` for a nonzero value divided by `0`, `true` for `0.isMultiple(of: 0)`, and it does not trap on `Int.min`.
+**প্রশ্ন ২. `%` আর modulo কীভাবে আলাদা?**  
+`%` শূন্যের দিকে ভাগের remainder। চিহ্ন বাঁ পাশের অপারেন্ডের থাকে। `-9 % 2` হয় `-1`। ধনাত্মক ভাজকের mathematical modulo কখনো ঋণাত্মক হয় না। আরেকটি বিষয়: `Int.min % -1` ট্র্যাপ করে, কারণ ভাগফল `Int`-এ ধরে না। কোনো সংখ্যা গুণিতক কি না, সেটা `isMultiple(of:)` দিয়ে দেখুন। শূন্য ছাড়া অন্য সংখ্যাকে `0` দিয়ে ভাগের গুণিতক ধরলে `false` আসে। `0.isMultiple(of: 0)` হয় `true`। `Int.min`-এ এটা ট্র্যাপ করে না।
 
-**Q3. Why do API guidelines prefer `Int` when the value cannot be negative?**  
-`UInt` still traps on underflow, and it does not model “must be positive” in the type system in a useful way. `Int` and `UInt` do not convert implicitly, so mixing them spreads casts through the code. Counts, indices, and `Array.count` are `Int`. I use a fixed-width or unsigned type for a C struct, a file format, or an actual bit width such as `UInt8` for bytes.
+**প্রশ্ন ৩. মান ঋণাত্মক হতে না পারলেও API গাইডলাইন `Int` বেছে নেয় কেন?**  
+`UInt`-ও আন্ডারফ্লোতে ট্র্যাপ করে। “অবশ্যই ধনাত্মক” এই নিয়ম টাইপ সিস্টেমে কার্যকরভাবে প্রকাশ পায় না। `Int` আর `UInt`-এর মধ্যে ইমপ্লিসিট কনভার্সন নেই, তাই মেশালে কোডজুড়ে কাস্ট ছড়িয়ে পড়ে। কাউন্ট, ইনডেক্স, `Array.count` — সব `Int`। C স্ট্রাকট, ফাইল ফরম্যাট, বা সত্যিকারের বিট প্রস্থ (যেমন বাইটের জন্য `UInt8`) হলে ফিক্সড-উইডথ বা আনসাইনড টাইপ ব্যবহার করুন।
 
-**Q4. How do you convert numbers without surprising truncation?**  
-`Double(int)` is exact for integers up to the 53-bit mantissa. `Int(double)` truncates toward zero, so `Int(-2.9)` is `-2`. `Int(exactly:)` returns `nil` when the value is not an integer or does not fit. The same split exists for widths: `Int8(someInt)` traps if the runtime value is out of range, and `Int8(exactly:)` returns an optional. A literal that does not fit, such as `let x: Int8 = 1000`, is a compile error.
+**প্রশ্ন ৪. অপ্রত্যাশিত ট্রাঙ্কেশন ছাড়া সংখ্যা কনভার্ট করবেন কীভাবে?**  
+ম্যান্টিসার ৫৩ বিটের ভিতরের পূর্ণসংখ্যায় `Double(int)` নির্ভুল। `Int(double)` শূন্যের দিকে কাটে, তাই `Int(-2.9)` হয় `-2`। মান পূর্ণসংখ্যা না হলে, বা না ধরলে, `Int(exactly:)` `nil` দেয়। প্রস্থের ক্ষেত্রেও একই ভাগ: রানটাইম মান রেঞ্জের বাইরে হলে `Int8(someInt)` ট্র্যাপ করে। `Int8(exactly:)` অপশনাল দেয়। যে লিটারাল ধরে না, যেমন `let x: Int8 = 1000`, সেটা কম্পাইল এরর।
 
-**Q5. `Int` and `Int64` are the same size on iPhone. Why can they not be used interchangeably?**  
-Same size is a platform fact. The types are still different, and Swift has no implicit numeric conversion. On a 64-bit device `MemoryLayout<Int>.size` and `MemoryLayout<Int64>.size` are both 8, yet `let x: Int64 = someInt` does not compile. `Int` is pointer-sized, so its width follows the platform. `Int64` stays 64-bit everywhere. Convert at the boundary with `Int64(someInt)` or `Int(exactly: someInt64)`.
+**প্রশ্ন ৫. iPhone-এ `Int` আর `Int64` একই সাইজ। বদলে বদলে ব্যবহার করা যায় না কেন?**  
+একই সাইজ প্ল্যাটফর্মের ঘটনা। টাইপ তবু আলাদা, এবং Swift-এ সংখ্যার ইমপ্লিসিট কনভার্সন নেই। ৬৪-বিট ডিভাইসে `MemoryLayout<Int>.size` ও `MemoryLayout<Int64>.size` দুটোই ৮, তবু `let x: Int64 = someInt` কম্পাইল হয় না। `Int` পয়েন্টার-সাইজড, তাই প্রস্থ প্ল্যাটফর্ম অনুসারে। `Int64` সব প্ল্যাটফর্মে ৬৪-বিট থাকে। সীমানায় `Int64(someInt)` বা `Int(exactly: someInt64)` দিয়ে কনভার্ট করুন।
 
-**Q6. How would you parse a number a user typed?**  
-`Int(text)` accepts an optional sign and a radix, and it returns `nil` for `"42a"` or for surrounding spaces. It does not understand grouping separators or Bengali digits. For those I use `NumberFormatter` with the user’s locale. I keep the result optional until validation succeeds. I do not use `0` as a stand-in for “missing”.
+**প্রশ্ন ৬. ইউজার যা টাইপ করেছে, সেই সংখ্যা কীভাবে পার্স করবেন?**  
+`Int(text)` অপশনাল চিহ্ন ও র‍্যাডিক্স নেয়। `"42a"` বা আশেপাশের স্পেসে `nil` দেয়। গ্রুপিং সেপারেটর বা বাংলা অঙ্ক বোঝে না। সেগুলোর জন্য ইউজারের লোকেলসহ `NumberFormatter` ব্যবহার করুন। ভ্যালিডেশন সফল না হওয়া পর্যন্ত ফল অপশনাল রাখুন। “নেই” বোঝাতে `0` ব্যবহার করবেন না।
