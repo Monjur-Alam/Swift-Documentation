@@ -393,262 +393,236 @@ Slicing with `prefix`, `suffix`, or a range returns a `Substring` that shares th
 **Q6. How do you build a large string efficiently?**  
 Use a `var` and `append`, and call `reserveCapacity` when the size is known. Repeated `text = text + chunk` can copy the growing buffer on each iteration. Interpolation (`"\(a) \(b)"`) is the normal choice for a fixed number of pieces. For many pieces, append into one mutable string.
 
----
+পুরো সংখ্যা (`Int`) — ইন্টারভিউ নোট (Google Doc-এ কপি করার জন্য)
 
-পরের টপিক এই একই ছকে দেব: ৩০ সেকেন্ডের উত্তর, ইন্টারভিউ পয়েন্ট, কোড, MCQ, তারপর short answer।
+# 3. Whole Numbers (`Int`)
 
-- [Understanding Custom UIView In-depth: Setting File Owner vs custom class](#understanding-custom-uiview-in-depth-setting-file-owner-vs-custom-class)
+## ৩০ সেকেন্ডে বলার উত্তর
 
-## Understanding Custom UIView In-depth: Setting File Owner vs custom class
-Before we jump into creating custom views, let’s see `two different ways` to load XIB File:
+`Int` is Swift’s signed integer, a small value-type struct. On every current Apple platform it is 64-bit, but it is a distinct type from `Int64`. Decimal, hex, binary, and underscores in literals are only formatting. The compiler ignores `_`. Ordinary `+`, `-`, `*`, and `/` trap on overflow in debug and release. Wrapping uses `&+`. Integer division truncates toward zero. `%` is a remainder, so it can be negative. `isMultiple(of:)` is the safe check, including for `0` and `Int.min`. There is no implicit conversion between numeric types.
 
-1. Using the `UINib` method instantiate(withOwner:options:)
+## যে পয়েন্টগুলো বলতে হবে
+
+**বেসিক লেখা।** `let` বা `var`, নাম, তারপর পূর্ণসংখ্যা। ঋণাত্মক মানও `Int`।
 
 ```swift
-let nib = UINib(nibName: "nibFileName", bundle: nil)
-if let view = nib.instantiate(withOwner: self, options: nil).first as? UIView {
-  // view is ready
+let score = 10
+var counter = 10
+let reallyBig = 100_000_000
+let sameNumber = 1_00__00___00____00   // একই মান, 100_000_000
+```
+
+`_` শুধু পড়ার সুবিধা। কম্পাইলার আন্ডারস্কোর ফেলে দেয়। একসাথে অনেকগুলো `_` দিলেও মান বদলায় না।
+
+অন্য লিটারাল:
+
+```swift
+let mask = 0b0000_1111   // binary, 15
+let hex = 0xFF_00_AA     // hex
+```
+
+**অঙ্ক আর compound assignment।** নতুন ভ্যালু বানাতে `+ - * /`। আগের ভেরিয়েবলেই ফেরত রাখতে `+= -= *= /= %=`। বাঁ পাশ `var` হতে হয়।
+
+```swift
+let lowerScore = score - 2
+let higherScore = score + 10
+let doubledScore = score * 2
+let squaredScore = score * score
+let halvedScore = score / 2      // দুটোই Int হলে ভাগফল পূর্ণসংখ্যা
+
+counter += 5
+counter *= 2
+counter -= 10
+counter /= 2
+```
+
+`9 / 2` হয় `4`। দশমিক চাইলে ভাগের আগে ভাসমান সংখ্যায় নিন: `Double(score) / 2`।
+
+**`+=` অ্যাটমিক নয়।** দুই থ্রেড একই `var counter += 1` করলে আপডেট হারাতে পারে। শেয়ারড কাউন্টারে অ্যাক্টর, লক, বা Swift Atomics ব্যবহার করুন। `Int` নিজে `Sendable`। শেয়ার করা `var` সেন্টেবল নয়।
+
+**Overflow ডিফল্টে ট্র্যাপ করে।** `Int.max + 1` ডিবাগ ও রিলিজ দুই জায়গাতেই `fatal error: arithmetic overflow`। C বা Objective-C-র মতো চুপচাপ র‍্যাপ হয় না।
+
+```swift
+let wrapped = Int.max &+ 1          // Int.min, ট্র্যাপ নেই
+let (value, didOverflow) = Int.max.addingReportingOverflow(1)
+// value == Int.min, didOverflow == true
+```
+
+`&+ &- &* &<< &>>` র‍্যাপিং অপারেটর। হ্যাশ বা বিট অঙ্কে দরকার হলে ব্যবহার করুন। ক্র্যাশ এড়াতে সাধারণ হিসাবে এগুলো ব্যবহার করবেন না।
+
+`abs(Int.min)` এবং `-Int.min` ও ট্র্যাপ করে। `Int.min`-এর ধনাত্মক রূপ `Int`-এ ধরে না, কারণ `Int.max` তার চেয়ে ১ ছোট।
+
+**ভাগ ও ভাগশেষ।** শূন্য দিয়ে ভাগ করলে ট্র্যাপ। `%` mathematical modulo নয়। এটা remainder। চিহ্ন বাঁ পাশের সংখ্যাটিকে অনুসরণ করে। ভাগফল শূন্যের দিকে কাটে।
+
+```swift
+9 / 2      // 4
+-9 / 2     // -4
+-9 % 2     // -1
+9 % -2     // 1
+```
+
+ধনাত্মক modulo দরকার হলে:
+
+```swift
+func mod(_ a: Int, _ n: Int) -> Int {
+    let r = a % n
+    return r >= 0 ? r : r + n
 }
 ```
 
-2. Using the `Bundle` method loadNibNamed(_:owner:options:)
+`Int.min % -1` ট্র্যাপ করে, কারণ ভাগফল `Int`-এ ধরে না।
+
+**`isMultiple(of:)`।** `% == 0`-এর চেয়ে এটাই বলার মতো API। `0`, ঋণাত্মক সংখ্যা, এবং `Int.min` সামলায়।
 
 ```swift
-if let view = Bundle.main.loadNibNamed(“nibFileName”, owner: self, options: nil)?.first as? UIView {
-  // view is ready
-}
+let number = 120
+number.isMultiple(of: 3)          // true
+120.isMultiple(of: 3)             // লিটারালেও কল করা যায়
+(-6).isMultiple(of: 3)            // true
+0.isMultiple(of: 0)               // true
+7.isMultiple(of: 0)               // false
+Int.min.isMultiple(of: -1)        // true, ট্র্যাপ করে না
 ```
 
-Tip 1: If you notice well, both the methods are returning an array of views, therefore I had to use `.first` to get the view instance.
+**সাইজ আর আলাদা টাইপ।** আজকের iPhone, iPad, Mac, Apple Watch-এ `Int` ৬৪-বিট। `Int` আর `Int64` একই সাইজ হলেও এক টাইপ নয়। এনোটেশন ছাড়া লিটারাল `Int` হয়।
 
-Can you guess why? (Think before scrolling further 😉)
-
-> XIB can have multiple views. So return value is an array containing the top-level objects in the nib file. As you can see in the screenshot:
-
-![image](https://user-images.githubusercontent.com/40492085/224464885-f1049616-e608-43e4-82e2-bb2f0d0d2e2b.png)
-
-I would still recommend to use only one view in one XIB, it’s a cleaner approach to avoid confusion later.
-
-Now we are ready to create custom UIView classes. But, it seems like a lot of developers have different opinions on being asked what’s the best way to create a custom UIView class. Mostly, the confusion is around Setting File owner and setting custom class in XIB
-
-The best way to find an answer is to try out different approaches and find out ourself 💪
-
-We are going to create custom UIView using `3 different experiments`:
-
-[A. Set File owner.](#experiment-a-create-a-custom-view-using-file-owner)
-
-[B. Set Custom class.](#experiment-b-create-a-custom-view-using-custom-class)
-
-[C. Set both File owner and custom class ?](#experiment-c-create-a-custom-view-using-custom-class-and-file-owner-both)
-
-#### Setting up the project
-Let’s create a TabBar application so that we can use different tab bars for every experiment. [Using XCode 11]
-
-![image](https://user-images.githubusercontent.com/40492085/224465047-0043c64c-d2d0-4cce-a507-38f9693c7da8.png)
-
-Setting up different controllers for each experiment
-
-![image](https://user-images.githubusercontent.com/40492085/224465064-ac9c0f7e-e9de-451d-98fd-3a05c47c7776.png)
-
-The best way to find an answer is to try out different approaches and find out ourself 💪
-
-Now we are ready with a Tab Bar Application which has 3 controllers ExperimentA_controller, ExperimentB_controller, ExperimentC_controller each represents its own experiment
-
-### Experiment A: Create a custom view using `File owner`
-**Step 1:** Add a new class `ChangeColorExpA.swift`
-
-![image](https://user-images.githubusercontent.com/40492085/224465085-5a04b79e-b721-4739-be3a-24a8c2de3da1.png)
-
-**Step 2:** Add a new view `ChangeColorExpA.xib`
-
-![image](https://user-images.githubusercontent.com/40492085/224465107-49754744-192a-4f65-94a5-06b7d00af779.png)
-
-**Step 3:** Resize View (Optional Step) using Attribute Inspector and add a button at the center of View as shown below:
-
-![image](https://user-images.githubusercontent.com/40492085/224465154-9048712e-9367-4eb4-a33c-71fc7dff5ad0.png)
-
-**Step 4:** Set File owner of class
-
-![image](https://user-images.githubusercontent.com/40492085/224465177-119486b2-733e-4a93-a41b-6751b7f95461.png)
-
-**Step 5:** Load XIB through code. Go to ChangeColorExpA.swift and use the code snippet as mentioned below
+| টাইপ | রেঞ্জ / সাইজ |
+|---|---|
+| `Int8` | −128…127 |
+| `UInt8` | 0…255 |
+| `Int32` | প্রায় ±2.1 বিলিয়ন |
+| `Int64` | সব প্ল্যাটফর্মে ৬৪-বিট |
+| `Int` | প্ল্যাটফর্মের শব্দদৈর্ঘ্য। Apple-এ এখন ৬৪-বিট |
+| `Int.min` / `Int.max` | ওই প্ল্যাটফর্মের শেষ সীমা |
 
 ```swift
-class ChangeColorExpA: UIView {
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        customInit()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        customInit()
-    }
-    
-    private func customInit() {
-        let nib = UINib(nibName: "ChangeColorExpA", bundle: nil)
-        if let view = nib.instantiate(withOwner: self, options: nil).first as? UIView {
-            view.backgroundColor = UIColor.clear
-            addSubview(view)
-            view.frame = self.bounds
-            self.backgroundColor = UIColor.cyan
-        }
-    }
-    
-    @IBAction func changeColorButtonTapped(_ sender: Any) {
-        let colors: [UIColor] = [UIColor.red, UIColor.green, UIColor.yellow, UIColor.orange, UIColor.black, UIColor.purple, UIColor.blue]
-        let randomColorIndex = arc4random() % 6
-        self.backgroundColor = colors[Int(randomColorIndex)]
-    }
-}
+MemoryLayout<Int>.size     // 64-bit-এ 8
+Int.bitWidth               // 64
 ```
 
-Hurray! 😀 ‘ChangeColorExpA’ View is ready for use now
+কাউন্ট, ইনডেক্স, স্ক্রিন জুড়ে সাধারণ অঙ্কে `Int` ব্যবহার করুন। `UInt` ব্যবহার করুন বিট প্যাটার্ন বা এমন C API-তে, যেখানে আনসাইনড টাইপ বাধ্যতামূলক। `UInt` ঋণাত্মক মান আটকায় না: বিয়োগ করলে আন্ডারফ্লোতে ট্র্যাপ হয়। `Int` আর `UInt` মেশালে বারবার কনভার্ট করতে হয়।
 
-**Tip 2:** We set the file owner in xib already, then why we have to set it again in the code snippet as mentioned above.
+বড় অ্যারেতে মেমরি কমাতে `Int8` বা `UInt8` রাখা যায়। অঙ্কের গতি সাধারণত বাড়ে না। ছোট টাইপে রেঞ্জ তাড়াতাড়ি শেষ হয়, তাই overflow বেশি ধরা পড়ে।
 
-Can you guess why? (Think again before scrolling further 😉)
-
-Setting file owner in xib only sets the Type of class owning the xib [not instance of owner] which later allows you to connect outlets and IBActions to the corresponding owner.
-
-You still need to set owner [instance of owner this time] through code while loading Xib.
-
-**‘ChangeColorExpA’** View is finally ready to use, but how?
-
-**Step 6:** Go to ExperimentA_Controller in the storyboard and change the class of view.
-
-Run the app.
-
-![image](https://user-images.githubusercontent.com/40492085/224465848-4dfe75d4-fbbc-418a-9166-964538b8de1e.png)
-
-As you can see, `ChangeColorExpA` is loaded successfully.
-
-**Tip 3:** How did this get loaded, even though we are not calling any of the init methods? Guess Why?
-
-> As soon as system loads ViewController:
->
-> System calls init(coder: NSCoder) of our custom view as it tries to unarchive the nib file because we have set custom class (ChangeColorExpA) to empty view in the storyboard. As a result, our method customInit() gets called where we are loading our xib file.
-
-### Experiment B: Create a custom view using `Custom Class`
-
-**Step 1:** Add new files: `ChangeColorExpB.swift` and `ChangeColorExpB.xib` similar to `experiment A`
-
-**Step 2:** Resize View (Optional) using Attribute Inspector and add a button at the center of View similar to `experiment A`
-
-**Step 3:** Set Custom Class this time instead of File Owner, see below:
-
-![image](https://user-images.githubusercontent.com/40492085/224466149-f41a0b38-1e77-44bc-995f-58e33458683d.png)
-
-**Step 4:** Load XIB through code. Go to `ChangeColorExpB.swift` and use the code snippet similar to `Experiment A` (just use correct xib name while loading it)
-
-**Step 5:** Go to `ExperimentB_Controller` in the storyboard and change the class of empty view. (similar to experiment A)
-
-Let’s see what happens when we run and go to `Experiment B` tab bar item?
-
-![image](https://user-images.githubusercontent.com/40492085/224466266-c4c402e0-9647-4877-9687-8876545d2148.png)
-
-Oops! Did something go wrong? Unfortunately, this doesn’t work fine
-
-Is App hanging? Can you guess why? 🤨 (Hint: Check Tip 3 in Experiment A)
-
-> As soon as system loads `ViewControllerB`:
->
-> System calls init(coder: NSCoder) of our custom view, (same as experiment A) which will call our method customInit().
->
-> Inside customInit() we are loading our xib file, and in our xib file we have set custom class to ChangeColorExpB (Done in Step 3). As a result, system will call init(coder: NSCoder) again for ChangeColorExpB. Since, it’s a never ending loop if you notice, your App will hang. 😥
-
-Then, what should be the correct way to create a custom view without using File Owner? 🙄
-
-1. Don’t load xib with in the same class in any of the init methods (init(coder: NSCoder) or init(frame: CGRect)) to avoid an infinite loop
-2. We have to load xib in the parent class or somewhere else instead of a custom UIView class.
-
-**Step 6:** Load xib in parent controller class i.e. `ExperimentB_controller`
-
-Check the code snippet for parent class below:
+**কোনো ইমপ্লিসিট কনভার্সন নেই।**
 
 ```swift
-class ExperimentB_controller: UIViewController {
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        addChangeColorView()
-    }
-    
-    func addChangeColorView() {
-        if let firstView = Bundle.main.loadNibNamed("ChangeColorVarB", owner: nil, options: nil)?.first as? UIView {
-            view.addSubview(firstView)
-            firstView.frame = CGRect(x: 0, y: 100, width: self.view.frame.size.width, height: firstView.frame.size.height)
-            firstView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            firstView.backgroundColor = UIColor.cyan
-        }
-    }
-}
+let n = 10
+let d = Double(n)
+let back = Int(2.9)                 // 2, শূন্যের দিকে কাটে
+let exact = Int(exactly: 2.0)       // Optional(2)
+let notInt = Int(exactly: 2.5)      // nil
+
+let small = Int8(exactly: 128)      // nil
+let runtime = Int8(someInt)         // না ধরলে রানটাইমে ট্র্যাপ
 ```
 
-Your custom view `ChangeColorVarB` class will only have `outlets` and `actions`:
+লিটারাল না ধরলে কম্পাইল এরর: `let x: Int8 = 1000`। রানটাইম ভ্যালু না ধরলে `Int8(value)` ট্র্যাপ করে। নিরাপদ রূপ `Int8(exactly:)`।
+
+**স্ট্রিং থেকে সংখ্যা।** ফেইলেবল ইনিশিয়ালাইজার। স্পেস কাটে না।
 
 ```swift
-class ChangeColorVarB: UIView {
-    
-    @IBOutlet var changeColorButtonInCustomView: UIButton!
-    
-    @IBAction func changeColorButtonTappedInCustomView(_ sender: Any) {
-        let colors: [UIColor] = [UIColor.red, UIColor.green, UIColor.yellow, UIColor.orange, UIColor.black, UIColor.purple, UIColor.blue]
-        let randomColorIndex = arc4random() % 6
-        self.backgroundColor = colors[Int(randomColorIndex)]
-    }
-}
+Int("42")              // Optional(42)
+Int("-42")             // Optional(-42)
+Int("42a")             // nil
+Int(" 42")             // nil
+Int("ff", radix: 16)   // Optional(255)
+Int("1010", radix: 2)  // Optional(10)
 ```
 
-As you might have noticed, I have set the **owner to nil** in code.
-**Tip:** Can you guess what will happen if you change the owner to self i.e. parent class in this case?
+লোকেলযুক্ত লেখায় (`1,50,000` বা `১২`) `NumberFormatter` ব্যবহার করুন।
 
-> If you assign parent class as an owner to our custom view [both in xib and code], It works perfectly fine. You will be able to connect outlets to the parent class too. Also, at the same time, you would still be able to connect outlets in the custom view.
->
-> Check experiment C to go more deep:
+**কপি সস্তা।** `Int` একটি শব্দ। কপি মানে সেই বিট কপি। `String`-এর মতো copy-on-write নেই, দরকারও নেই। `Hashable` ও `Comparable`, তাই ডিকশনারি কী, `Set` এলিমেন্ট, আর সর্টে সরাসরি ব্যবহার করা যায়।
 
-### Experiment C: Create a custom view using `Custom Class` and `File Owner` both
-**Step 1:** Add new files: `ChangeColorExpC.swift` and `ChangeColorExpC.xib` similar to `experiment A`
+**UI।** ইনডেক্স ও `count` হলো `Int`। ফ্রেম ও `CGFloat` আলাদা টাইপ। ৬৪-বিটে `CGFloat` আসলে `Double`।
 
-**Step 2:** Add a button at the center of View similar to `experiment A and B`
+```swift
+let width = CGFloat(count) * 10
+```
 
-**Step 3:** This time, we are going to set both custom class [to custom view class] and file owner [to parent class]. Check in the screenshots:
+**JSON।** `Int` কোড হয় সংখ্যা হিসেবে। `2^53 - 1`-এর বড় মান JavaScript-এর `Number`-এ নিরাপদ নয়। সেই আইডি স্ট্রিং হিসেবে পাঠানোই নিরাপদ।
 
-![image](https://user-images.githubusercontent.com/40492085/224466755-40bc0f0d-3693-4fbf-ba9e-79cc08a848a3.png)
+## MCQ
 
-**Step 4:** Load xib in parent class. Connect `outlets` and `IBAction` to both parent and custom view class.
+**1.** ৬৪-বিট iOS-এ কোনটা কম্পাইল হবে?
 
-> Why are we loading xib in parent, not in custom view class ?
->
-> Learnings from experiment B - As we have given custom class to xib already, we should not load xib in same class to avoid inifinte loops.
+A. `let x: Int64 = 10 as Int`  
+B. `let n = 10; let x: Int64 = n`  
+C. `let x = Int64(10)`  
+D. `let x: Int32 = 10; let y: Int = x`  
 
-![image](https://user-images.githubusercontent.com/40492085/224466787-bd497cd4-79bf-4582-bf1e-36a1c7db7790.png)
+**Answer: C.** `Int`, `Int32`, `Int64` আলাদা টাইপ। সাইজ মিললেও ইমপ্লিসিট কনভার্সন নেই। `Int64(10)` লিটারাল থেকে স্পষ্টভাবে বানায়।
 
-Let’s run and observe what’s happening here:
+**2.** রিলিজ বিল্ডে `Int.max + 1` কী করে?
 
-![image](https://user-images.githubusercontent.com/40492085/224466802-a991ff2c-0ff4-4285-a14a-8961b17110b0.png)
+A. `Int.min`-এ র‍্যাপ করে  
+B. `nil` দেয়  
+C. overflow-এ ট্র্যাপ করে  
+D. শুধু ডিবাগে ট্র্যাপ করে, রিলিজে র‍্যাপ করে  
 
-As you can see both the outlets are exactly the same object.
+**Answer: C.** সাধারণ `+` ডিবাগ ও রিলিজ দুই জায়গাতেই চেক করে। র‍্যাপ চাইলে `Int.max &+ 1`।
 
-So after playing around with views, file owners and custom class. We can easily say Experiment A wins here. 🥳 Can you guess why?
+**3.** `-9 % 2` কত?
 
-Pros of using Experiment A [Setting only ‘File Owner’ in xib]:
+A. 1  
+B. −1  
+C. −4  
+D. রানটাইম ট্র্যাপ  
 
-> We can reuse custom view throughout the app using code, storyboards, and xib. Other ways can have a never-ending loop as we saw already.
->
-> No hassle to load xib outside from parent class and other classes.
->
-> Cleaner approach, as File owner is itself class only instead of a parent or some other class.
->
+**Answer: B.** `%` remainder। চিহ্ন ডিভিডেন্ডের। ভাগফল শূন্যের দিকে কাটে, তাই `-9 / 2` হয় `-4`, ভাগশেষ `-1`।
 
-Overall, this approach gives us a reusable class which is packed in itself to avoid confusions of having different file owner or multiple outlets.
+**4.** কোন কলটি ট্র্যাপ করবে?
 
-We can make a slight improvement in this approach by connecting the root view of our custom view xib to our class.
+A. `0.isMultiple(of: 0)`  
+B. `Int.min.isMultiple(of: -1)`  
+C. `Int.min % -1`  
+D. `7.isMultiple(of: 0)`  
 
-![image](https://user-images.githubusercontent.com/40492085/224466953-89e9fb2b-dfb8-416f-81c8-3990e7c018ac.png)
+**Answer: C.** `%` ভাগফল বের করতে গিয়ে overflow করে। `isMultiple(of:)` এই কেসটি সামলায় এবং `true` দেয়। `7.isMultiple(of: 0)` হয় `false`।
 
-How is it better? 😎
-In case, you want to add/update any views or update constraints it’s better to have an outlet of root view. As contentView outlet will contain all the subviews of xib.
+**5.** `let same = 1_00__00___00____00` এর মান কত?
 
-you can download the complete project from [**Github**](https://github.com/bhupendratrivedi/SampleCustomView) and play around with it.
+A. কম্পাইল এরর, কারণ `_` পরপর বসানো যায় না  
+B. `100_000_000`  
+C. `1`  
+D. স্ট্রিং `"1_00__00___00____00"`  
+
+**Answer: B.** আন্ডারস্কোর ফরম্যাটিং। কম্পাইলার সব `_` বাদ দিয়ে `100000000` রাখে।
+
+**6.** `Int(exactly: 2.9)` আর `Int(2.9)` কী দেয়?
+
+A. দুটোই `2`  
+B. `nil` এবং `2`  
+C. `3` এবং `2`  
+D. দুটোই `nil`  
+
+**Answer: B.** `Int.init` দশমিক অংশ ফেলে শূন্যের দিকে কাটে। `exactly` পূর্ণসংখ্যা না হলে `nil` দেয়।
+
+**7.** দুইটা কনকারেন্ট টাস্ক `counter += 1` করলে কী ধরা নিরাপদ?
+
+A. `Int` `Sendable`, তাই ইনক্রিমেন্ট নিরাপদ  
+B. `+=` একটা CPU ইনস্ট্রাকশন, তাই অ্যাটমিক  
+C. আপডেট হারাতে পারে  
+D. কম্পাইলার অটো লক বসিয়ে দেয়  
+
+**Answer: C.** ভ্যালু টাইপ কপি করা নিরাপদ। একই `var`-এ একসাথে লেখা ডেটা রেস। `+=` পড়া, যোগ, লেখা — এই তিন ধাপ।
+
+## Short answer
+
+**Q1. Why does Swift trap on integer overflow instead of wrapping?**  
+A wrong wrap becomes a later logic bug or a security bug. Swift’s default operators check the result and trap in debug and release, so the failure stays next to the bad arithmetic. When wrapping is the real spec, as in hashing or bit masks, use `&+`, `&-`, and `&*`. When the caller must decide, use `addingReportingOverflow` and read the overflow flag.
+
+**Q2. What is the difference between `%` and a modulo operation?**  
+`%` is the remainder of division toward zero, and it keeps the sign of the left operand. `-9 % 2` is `-1`. Mathematical modulo for a positive divisor is never negative. Also, `Int.min % -1` traps because the quotient does not fit in `Int`. For a multiple check I use `isMultiple(of:)`. It returns `false` for a nonzero value divided by `0`, `true` for `0.isMultiple(of: 0)`, and it does not trap on `Int.min`.
+
+**Q3. Why do API guidelines prefer `Int` when the value cannot be negative?**  
+`UInt` still traps on underflow, and it does not model “must be positive” in the type system in a useful way. `Int` and `UInt` do not convert implicitly, so mixing them spreads casts through the code. Counts, indices, and `Array.count` are `Int`. I use a fixed-width or unsigned type for a C struct, a file format, or an actual bit width such as `UInt8` for bytes.
+
+**Q4. How do you convert numbers without surprising truncation?**  
+`Double(int)` is exact for integers up to the 53-bit mantissa. `Int(double)` truncates toward zero, so `Int(-2.9)` is `-2`. `Int(exactly:)` returns `nil` when the value is not an integer or does not fit. The same split exists for widths: `Int8(someInt)` traps if the runtime value is out of range, and `Int8(exactly:)` returns an optional. A literal that does not fit, such as `let x: Int8 = 1000`, is a compile error.
+
+**Q5. `Int` and `Int64` are the same size on iPhone. Why can they not be used interchangeably?**  
+Same size is a platform fact. The types are still different, and Swift has no implicit numeric conversion. On a 64-bit device `MemoryLayout<Int>.size` and `MemoryLayout<Int64>.size` are both 8, yet `let x: Int64 = someInt` does not compile. `Int` is pointer-sized, so its width follows the platform. `Int64` stays 64-bit everywhere. Convert at the boundary with `Int64(someInt)` or `Int(exactly: someInt64)`.
+
+**Q6. How would you parse a number a user typed?**  
+`Int(text)` accepts an optional sign and a radix, and it returns `nil` for `"42a"` or for surrounding spaces. It does not understand grouping separators or Bengali digits. For those I use `NumberFormatter` with the user’s locale. I keep the result optional until validation succeeds. I do not use `0` as a stand-in for “missing”.
