@@ -874,3 +874,209 @@ Swift `a`-কে `Int` এবং `b`-কে `Double` ধরে। টাইপ �
 
 **প্রশ্ন ৬. overflow আর শূন্য দিয়ে ভাগ `Int`-এর চেয়ে কীভাবে আলাদা?**  
 চেক করা পূর্ণসংখ্যার অঙ্ক ট্র্যাপ করে। `Double` overflow-এ `inf` হয়। শূন্য দিয়ে ভাগ ট্র্যাপ করে না: `1.0 / 0.0` হয় `inf`, `0.0 / 0.0` হয় `NaN`। `NaN` সবকিছুর সাথে অসমান, নিজের সাথেও। চেক `isNaN`। `+0` আর `-0` সমান হিসেবে তুলনা হয়। `JSONEncoder` দিয়ে `NaN` বা infinity এনকোড করা যায় না, কারণ JSON সংখ্যায় এই মান দুটি নেই। `NaN`, infinity, বা রেঞ্জের বাইরের `Double`কে `Int(...)` দিয়ে বদলালে ট্র্যাপ হয়। `Int(exactly:)` দিলে `nil` আসে।
+
+# 5. Truth (`Bool`)
+
+## ৩০ সেকেন্ডে বলার উত্তর
+
+`Bool` শুধু `true` বা `false` রাখে। `hasSuffix` বা `isMultiple(of:)` যে চেক করে, তার ফল এই টাইপেই আসে। অঙ্কের অপারেটর নেই। `!` মান উল্টে নতুন `Bool` দেয়। `toggle()` একই কাজ জায়গাতেই করে, তাই বাঁ পাশ `var` হতে হয়। Swift-এ truthiness নেই: `if` শুধু `Bool` নেয়, `Int` বা `String` নয়। `&&` আর `||` শর্ট-সার্কিট করে, কারণ ডান পাশ `@autoclosure`। `Bool?`-এ তিন অবস্থা: `true`, `false`, `nil`। `if let` করলে `false`-ও ভিতরে ঢোকে। `nil` মানে `false` নয়।
+
+## যে পয়েন্টগুলো বলতে হবে
+
+**সরাসরি বানানো যায়, এক্সপ্রেশন থেকেও।** নাম George Boole-এর থেকে। লজিকের দুটি মান।
+
+```swift
+let goodDogs = true
+let gameOver = false
+
+let filename = "paris.jpg"
+let isJPEG = filename.hasSuffix(".jpg")   // Bool
+
+let number = 120
+let isMultiple = number.isMultiple(of: 3)  // true
+```
+
+`switch` করলে `true` আর `false` মিলিয়েই exhaustive। `default` লাগে না।
+
+**`!` নতুন মান দেয়। `toggle()` নিজেকে বদলায়।**
+
+```swift
+var isAuthenticated = false
+isAuthenticated = !isAuthenticated
+print(isAuthenticated)          // true
+
+isAuthenticated = !isAuthenticated
+print(isAuthenticated)          // false
+
+var gameOver = false
+gameOver.toggle()
+print(gameOver)                 // true
+```
+
+`toggle()` আসলে `self = !self`। লম্বা নামে পড়া সহজ। `let`-এর ওপর কল হয় না, কারণ মেথড `mutating`। `let`-এর উল্টো মান নতুন কনস্ট্যান্টে রাখুন: `let signedOut = !isAuthenticated`।
+
+`!` দুই রকম। প্রিফিক্স `!` মানে Bool NOT। পোস্টফিক্স `!` মানে Optional ফোর্স-আনর‍্যাপ।
+
+```swift
+let flag: Bool? = true
+let flipped = !flag!     // আগে আনর‍্যাপ, তারপর NOT। ফল false
+```
+
+`flag` যদি `nil` হয়, `flag!` ট্র্যাপ করে। `Bool?`-এ সরাসরি `!flag` কম্পাইল হয় না।
+
+**অঙ্ক নেই। ০/১-ও বসানো যায় না।** `true + true` কম্পাইল হয় না। `Int(true)`-ও হয় না। দরকার হলে টার্নারি: `isOn ? 1 : 0`।
+
+**Truthiness নেই।** C, JavaScript, Python-এ সংখ্যা বা স্ট্রিং শর্ত হতে পারে। Swift-এ `if` ও `guard` শুধু `Bool` চায়।
+
+```swift
+let count = 0
+// if count { }          // এরর
+if count != 0 { }
+
+let name = "Ted"
+// if name { }           // এরর
+if !name.isEmpty { }
+```
+
+**শর্ট-সার্কিট।** `&&` ও `||` স্ট্যান্ডার্ড লাইব্রেরিতে `@autoclosure`। বাঁ পাশ দেখে ডান পাশ একেবারেই চলে না।
+
+```swift
+func expensive() -> Bool {
+    print("called")
+    return true
+}
+
+false && expensive()    // expensive() কল হয় না
+true || expensive()     // expensive() কল হয় না
+```
+
+বাউন্ড চেক এই কারণেই বাঁ পাশে থাকে:
+
+```swift
+if index >= 0 && index < items.count && items[index].isSelected {
+    // index বৈধ না হলে সাবস্ক্রিপ্ট চলে না
+}
+```
+
+প্রিসিডেন্স: `!`, তারপর `&&`, তারপর `||`। `a || b && c` মানে `a || (b && c)`। মেশানো এক্সপ্রেশনে বন্ধনী দিন।
+
+দুই পাশই চালাতে হলে আগে আলাদা `let`-এ নিন। সাইড ইফেক্ট `&&`-এর ডান পাশে লুকোবেন না। `assert`-এর শর্তও অটোক্লোজার। রিলিজে `assert` উঠে যায়, তাই দরকারি কাজ সেখানে রাখবেন না। `precondition` ডিফল্ট রিলিজে থাকে। `-Ounchecked`-এ সেটাও ওঠে।
+
+**`Bool?` তিন অবস্থা।** এটাই সবচেয়ে ঘনঘন বাগ।
+
+| মান | `== true` | `== false` | `if let x = value` |
+|---|---|---|---|
+| `nil` | ঢোকে না | ঢোকে না | ঢোকে না |
+| `false` | ঢোকে না | ঢোকে | ঢোকে |
+| `true` | ঢোকে | ঢোকে না | ঢোকে |
+
+```swift
+let isAdmin: Bool? = false
+
+if let isAdmin {
+    // false হলেও এখানে ঢোকে। nil হলেই শুধু বাদ
+}
+
+if isAdmin == true {
+    // শুধু সত্যিকারের true
+}
+```
+
+অপশনাল চেইনে `nil` আর `false` এক পথে পড়ে:
+
+```swift
+if user?.isAdmin == true {
+    // user না থাকলে এক্সপ্রেশন nil। nil == true মিথ্যা
+}
+```
+
+“জানি না” আর “না” আলাদা রাখতে `Bool?` রাখুন। শুধু হ্যাঁ/না হলে `Bool` রাখুন, `nil`-কে `false` বানিয়ে ফেলবেন না।
+
+**জমা ও ব্রিজ।** `Bool` একটি ভ্যালু টাইপ। `MemoryLayout<Bool>.size` হয় ১। `[Bool]`-এ প্রতিটি এলিমেন্ট এক বাইট, এক বিট নয়। অনেক ফ্ল্যাগ একসাথে একটি C বিটমাস্ক হলে `OptionSet`। আলাদা আলাদা অবস্থা থাকলে আলাদা `Bool`।
+
+`Codable` JSON-এ `true`/`false` লেখে। `1` বা `0` ডিফল্টে `Bool` হয় না, `typeMismatch` হয়। Foundation-এ `Bool` Objective-C `BOOL`-এ ব্রিজ হয়। `Bool` নিজে `Sendable`। একই `var` দুই থ্রেডে লিখলে ডেটা রেস থাকে।
+
+SwiftUI-তে `@State var isPresented = false`, তারপর `isPresented.toggle()`। `disabled(!isFormValid)` শুধু তখনই নিরাপদ, যখন মান সত্যিই `Bool`, `Bool?` নয়।
+
+## MCQ
+
+**1.** কোনটা কম্পাইল হবে?
+
+A. `let n = 3; if n { print(n) }`  
+B. `let s = "a"; if s { print(s) }`  
+C. `let ok = !filename.hasSuffix(".png")`  
+D. `let sum = true + true`  
+
+**Answer: C.** `if` শুধু `Bool` নেয়। `Bool`-এ `+` নেই। `hasSuffix` `Bool` দেয়, `!` সেটা উল্টে দেয়।
+
+**2.** `false && expensive()` হলে `expensive()` কী হয়? ফাংশন `print("called")` করে।
+
+A. `"called"` ছাপে  
+B. কলই হয় না  
+C. রিলিজ বিল্ডে কল হয়, ডিবাগে হয় না  
+D. কম্পাইল এরর, কারণ `&&` দুই পাশ চায়  
+
+**Answer: B.** ডান পাশ `@autoclosure`। বাঁ পাশ `false` হলে ডান পাশ ইভ্যালুয়েট হয় না।
+
+**3.** `let isAdmin: Bool? = false`। কোন ব্লকটি চলবে?
+
+A. `if let isAdmin { grant() }` — `grant()` কল হয়  
+B. `if isAdmin == true { grant() }` — `grant()` কল হয়  
+C. `if isAdmin == false { }` — এই ব্লক চলে না  
+D. `if !isAdmin { }` — কম্পাইল হয়ে `grant` এড়ায়  
+
+**Answer: A.** `if let` শুধু `nil` বাদ দেয়। `false` একটি আসল মান, তাই ব্লকে ঢোকে। `!isAdmin` কম্পাইল হয় না। `== true` এই কেসে ঢোকে না।
+
+**4.** `var gameOver = false` এর পর কোনটা বৈধ?
+
+A. `let fixed = false; fixed.toggle()`  
+B. `gameOver.toggle()`  
+C. `gameOver = gameOver + true`  
+D. `let n = Int(gameOver)`  
+
+**Answer: B.** `toggle()` মিউটেটিং। `let`-এ চলে না। `Int` আর `Bool` নিজে থেকে বদলায় না।
+
+**5.** `let flag: Bool? = true`। `!flag!` কী?
+
+A. কম্পাইল এরর  
+B. `true`  
+C. `false`  
+D. `nil`  
+
+**Answer: C.** পোস্টফিক্স `!` আগে আনর‍্যাপ করে। প্রিফিক্স `!` তারপর NOT করে। `flag` যদি `nil` হতো, আনর‍্যাপ ট্র্যাপ করত।
+
+**6.** `index` সীমার বাইরে। কোন ক্রমটি সাবস্ক্রিপ্টের আগে থামে?
+
+A. `items[index].isSelected && index < items.count`  
+B. `index >= 0 && index < items.count && items[index].isSelected`  
+C. `items[index].isSelected || index < items.count`  
+D. দুটোই একই, কারণ `&&` সবসময় দুই পাশ চালায়  
+
+**Answer: B.** `&&` বাঁ থেকে ডানে থামে। ইনডেক্স বৈধ হওয়ার পরই সাবস্ক্রিপ্ট চলে। উল্টো ক্রমে আগেই ক্র্যাশ।
+
+**7.** সার্ভার JSON-এ `{"admin": 1}`। `admin`-কে `Bool` ডিকোড করলে কী হয়?
+
+A. `true` হয়  
+B. `false` হয়  
+C. `typeMismatch`  
+D. `1` একটি বৈধ `Bool` লিটারাল  
+
+**Answer: C.** `Codable` শুধু JSON `true`/`false` নেয়। `0`/`1` ডিফল্টে `Bool` হয় না।
+
+## Short answer
+
+**প্রশ্ন ১. `!` আর `toggle()` কীভাবে আলাদা?**  
+`!` একটি নতুন `Bool` দেয়। পুরোনো বাইন্ডিং বদলায় না, তাই `let`-এর উল্টো মান আলাদা কনস্ট্যান্টে রাখা যায়। `toggle()` মিউটেটিং মেথড। ভিতরে `self = !self` চলে, তাই টার্গেট `var` হতে হয়। লম্বা প্রপার্টির নামে `isPresented.toggle()` পড়া সহজ। ফল একই। পোস্টফিক্স `!` অন্য জিনিস: সেটা Optional আনর‍্যাপ করে। `Bool?`-এ প্রিফিক্স `!` সরাসরি বসানো যায় না।
+
+**প্রশ্ন ২. Swift-এ `if count` চলে না কেন?**  
+`if`, `guard`, `while` শুধু `Bool` চায়। `Int`, `String`, অপশনাল — এগুলোর আলাদা “খালি” মান আছে, কিন্তু সেগুলো শর্ত হিসেবে বসে না। `0` বা `""` দিয়ে চুপচাপ মিথ্যা বানিয়ে ফেললে ভুল লুকিয়ে যায়। শর্ত স্পষ্ট লিখতে হয়: `count != 0`, `!name.isEmpty`। একই নিয়মে `true + true` বা `Int(true)` কম্পাইল হয় না। বিট দরকার হলে `isOn ? 1 : 0`।
+
+**প্রশ্ন ৩. `&&` কীভাবে ক্র্যাশ আটকায়?**  
+ডান পাশ `@autoclosure`। বাঁ পাশ `false` হলে ডান পাশ কল হয় না। `||`-এ বাঁ পাশ `true` হলে ডান পাশ চলে না। তাই `index >= 0 && index < items.count && items[index].isSelected` নিরাপদ। সাবস্ক্রিপ্ট আগে লিখলে শর্ট-সার্কিট আর বাঁচাতে পারে না। প্রিসিডেন্সে `&&` আগে, `||` পরে। দুই পাশের সাইড ইফেক্ট দরকার হলে আগে আলাদা ভেরিয়েবলে হিসাব করুন। `assert`-এর ভিতরে দরকারি কাজ রাখবেন না। রিলিজে `assert` সরে যায়।
+
+**প্রশ্ন ৪. `Bool?`-এ `if let` বিপজ্জনক কোথায়?**  
+`if let` শুধু `nil` সরায়। `false` একটি বৈধ মান, তাই ব্লকের ভিতরে ঢোকে। `isAdmin` মিথ্যা হলেও অ্যাক্সেস দিয়ে ফেলা এই বাগ। শুধু হ্যাঁ ধরতে `if isAdmin == true` লিখুন। অথবা `if let isAdmin, isAdmin`। `nil == false` মিথ্যা, তাই “মান নেই” আর “না” এক জিনিস নয়। `user?.isAdmin == true` তখনই ঢোকে, যখন ইউজার আছে এবং অ্যাডমিন। ইউজার না থাকলে এক্সপ্রেশন `nil`।
+
+**প্রশ্ন ৫. অনেকগুলো হ্যাঁ/না কীভাবে রাখবেন?**  
+স্বাধীন অবস্থা আলাদা `Bool` থাকে। যেমন `isLoggedIn` আর `hasSeenOnboarding`। একসাথে পাঠানো অপশনের সেট, বা C-এর বিটমাস্ক, হলে `OptionSet`। `[Bool]` প্রতি মানে এক বাইট রাখে, এক বিট নয়। JSON-এ `Bool` হয় `true`/`false`। সার্ভার `0`/`1` পাঠালে ডিফল্ট `Codable` `typeMismatch` দেয়। তখন ডিকোডিং আলাদা করে লিখুন। Objective-C সীমানায় `Bool` ব্রিজ হয় `BOOL`-এ।
+
