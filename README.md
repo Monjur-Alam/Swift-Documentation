@@ -1465,3 +1465,259 @@ D. `120.isMultiple(of: 3)` → `true`
 
 **প্রশ্ন ৫. এই চার টাইপ নিয়ে প্রোডাকশনে কোন বাগ যায়?**  
 দাম `Double`-এ রাখলে এক সেন্টের গরমিল। `0.1 + 0.2 == 0.3` মিথ্যা। `Bool?` নিয়ে `if let` করলে `false`-ও ভিতরে ঢোকে। অপশনাল ইন্টারপোলেশন `Optional("Tay")` ছাপে। পূর্ণসংখ্যার `score / 2` দশমিক কেটে ফেলে। বড় স্ট্রিং লুপে `+` করলে কপি বেড়ে যায়। `Int` overflow ট্র্যাপ করে। `Double` overflow `inf` হয়। দুটোই চেক না করলে ক্র্যাশ বা ভাঙা UI।
+
+অ্যারেতে সাজানো ডেটা — ইন্টারভিউ নোট (Google Doc-এ কপি করার জন্য)
+
+# 8. Arrays (`[Element]`)
+
+## ৩০ সেকেন্ডে বলার উত্তর
+
+`Array` একই টাইপের অনেক মান ক্রমানুসারে রাখে। খালিও হতে পারে। ইনডেক্স `0` থেকে। `[String]` আর `[Int]` আলাদা টাইপ, তাই মেশানো যায় না। এটা struct, তাই কপি অন রাইট। `count` আর সাবস্ক্রিপ্ট O(1)। সীমার বাইরে সাবস্ক্রিপ্ট ট্র্যাপ করে। `append` শেষে যোগ করে। `sorted()` নতুন অ্যারে দেয়। `reversed()` আসল অ্যারে নয়, একটি উল্টো ভিউ। লুপে সামনে থেকে `remove(at:)` করলে পরের ইনডেক্স সরে যায়। ক্লাস এলিমেন্ট কপি করলে রেফারেন্স শেয়ার হয়।
+
+## যে পয়েন্টগুলো বলতে হবে
+
+**এক জায়গায় এক টাইপ, যে ক্রমে বসানো হয়েছে।** ব্র্যাকেট, মাঝে কমা।
+
+```swift
+var beatles = ["John", "Paul", "George", "Ringo"]
+let numbers = [4, 8, 15, 16, 23, 42]
+var temperatures = [25.3, 28.2, 26.4]
+```
+
+`beatles[0]` প্রথম। `beatles[1]` দ্বিতীয়। দিন, ছাত্র, বছরের জনসংখ্যা — ক্রম থাকলে অ্যারে।
+
+```swift
+print(beatles[0])        // John
+print(numbers[1])        // 8
+print(temperatures[2])   // 26.4
+```
+
+ইনডেক্স না থাকলে অ্যাপ থেমে যায়। `fatalError`, অপশনাল নয়। বৈধ ইনডেক্স `0..<count`। খালি অ্যারেতে `[0]` ট্র্যাপ। `first` আর `last` অপশনাল, না থাকলে `nil`।
+
+```swift
+if numbers.indices.contains(1) {
+    print(numbers[1])
+}
+print(numbers.first)     // Optional(4)
+```
+
+**টাইপ একবার ঠিক হলে সেই টাইপই থাকে।** `temperatures`-এ `String` ঢোকানো যায় না। বের করলেও যে টাইপ ভিতরে, সেটাই আসে। `[String]` আর `[Int]` দুটোই অ্যারে, তবু আলাদা স্পেশালাইজড টাইপ। `+` তাদের মধ্যে চলে না।
+
+```swift
+beatles.append("Adrian")
+beatles.append("Allen")
+beatles.append("Adrian")   // ডুপ্লিকেট বৈধ। অ্যারে সেট নয়
+
+// temperatures.append("Chris")   // এরর
+
+let firstBeatle = beatles[0]
+let firstNumber = numbers[0]
+// firstBeatle + firstNumber      // String আর Int মেশে না
+```
+
+খালি অ্যারেতে টাইপ লিখতে হয়। নাহলে কম্পাইলার বুঝতে পারে না ভিতরে কী থাকবে।
+
+```swift
+var scores = Array<Int>()
+var albums = [String]()          // একই জিনিস
+scores.append(100)
+scores.append(80)
+scores.append(85)
+print(scores[1])                 // 80
+
+var inferred = ["Folklore"]
+inferred.append("Fearless")
+inferred.append("Red")
+```
+
+মান আগে থেকে থাকলে টাইপ infer হয়। `let` অ্যারেতে `append` বা এলিমেন্ট বদলানো যায় না। `var` লাগে।
+
+```swift
+var grid = Array(repeating: 0, count: 100)
+```
+
+`repeating` ক্লাসে একই রেফারেন্স বারবার বসায়।
+
+```swift
+final class Node { var value = 0 }
+let nodes = Array(repeating: Node(), count: 3)
+nodes[0].value = 1
+// nodes[1].value ও nodes[2].value এখন 1
+```
+
+আলাদা অবজেক্ট চাইলে `(0..<3).map { _ in Node() }`।
+
+**চলতি কাজ।**
+
+```swift
+print(albums.count)
+
+var characters = ["Lana", "Pam", "Ray", "Sterling"]
+characters.remove(at: 2)     // Ray যায়। পরের ইনডেক্স ১ করে সরে
+print(characters.count)      // 3
+characters.removeAll()
+print(characters.count)      // 0
+
+let bondMovies = ["Casino Royale", "Spectre", "No Time To Die"]
+bondMovies.contains("Frozen")   // false। == দিয়ে হেঁটে দেখে, কেস-সেনসিটিভ
+
+let cities = ["London", "Tokyo", "Rome", "Budapest"]
+print(cities.sorted())
+// ["Budapest", "London", "Rome", "Tokyo"]
+// cities অপরিবর্তিত
+
+let presidents = ["Bush", "Obama", "Trump", "Biden"]
+let reversedPresidents = presidents.reversed()
+```
+
+`sorted()` নতুন `[Element]` দেয়। মূল অ্যারে থাকে। `var`-এ জায়গাতেই সাজাতে `sort()`। ডিফল্ট বাড়ানো ক্রম। `String`-এ Unicode কোড পয়েন্ট। বড় হাতের অক্ষর ছোট হাতের আগে আসে। ইউজারের শহরের তালিকায় `localizedStandardCompare`। সমান এলিমেন্টের আগের ক্রম ধরে রাখার গ্যারান্টি নেই। সর্ট স্টেবল নয়।
+
+`reversed()` এলিমেন্ট সরায় না। `ReversedCollection` মনে রাখে যে পড়া উল্টো দিক থেকে। প্লেগ্রাউন্ডে সাধারণ `[String]` দেখায় না। আসল অ্যারে লাগলে `Array(presidents.reversed())`। জায়গাতেই উল্টোতে `reverse()`।
+
+`String`-ও কালেকশন। `"swift".sorted()` দেয় `[Character]`। `String(...)` করলে `"fistw"`।
+
+**খরচ।** `Array`-এর `count` O(1)। `String.count` O(n), কারণ grapheme। এই পার্থক্য ইন্টারভিউতে আসে।
+
+| কাজ | খরচ |
+|---|---|
+| `array[i]`, `count`, `isEmpty` | O(1) |
+| `append`, `popLast` | অ্যামরটাইজড O(1) |
+| `insert(_:at:)`, `remove(at:)` | O(n), পেছনের অংশ সরে |
+| `contains`, `firstIndex(of:)` | O(n) |
+| `sorted()` | O(n log n) |
+
+অনেকবার `append` হলে `reserveCapacity`। লুপে `array = array + [item]` প্রতিবার নতুন বাফারের দিকে যায়। `append` ইউনিক বাফারে জায়গাতেই বাড়ে।
+
+`removeLast()` খালি হলে ট্র্যাপ। `popLast()` খালি হলে `nil`। সামনে থেকে মুছতে মুছতে ইনডেক্স দিয়ে লুপ চালালে এলিমেন্ট এড়িয়ে যান বা ক্র্যাশ। শর্তে মুছতে `removeAll(where:)`।
+
+**কপি অন রাইট।** অ্যাসাইনমেন্টে হেডার কপি হয়, বাফার শেয়ার থাকে। একজন বদলালে আর শেয়ার না থাকলে তখন কপি।
+
+```swift
+var a = [1, 2, 3]
+var b = a
+b.append(4)
+// a == [1, 2, 3]
+// b == [1, 2, 3, 4]
+```
+
+এলিমেন্ট ক্লাস হলে অ্যারের বাফার আলাদা হলেও অবজেক্ট একই থাকে।
+
+```swift
+final class Box { var n = 0 }
+var first = [Box()]
+var second = first
+second[0].n = 5
+// first[0].n ও 5
+```
+
+`let` অ্যারে মানে বাইন্ডিং স্থির। ভিতরের ক্লাসের `var` প্রপার্টি তবু বদলায়।
+
+**স্লাইস।** `numbers[1...3]` একটি `ArraySlice`। নিজের ইনডেক্স মূল অ্যারের ইনডেক্স। এই স্লাইসে `0` নাও থাকতে পারে। বাফার শেয়ার করে, তাই বড় অ্যারের ছোট স্লাইস প্রপার্টিতে রাখলে পুরো বাফার বেঁচে থাকে। আলাদা করতে `Array(slice)`।
+
+`enumerated()` অফসেট সবসময় `0` থেকে। স্লাইসে সেটা মূল ইনডেক্স নয়।
+
+```swift
+let slice = Array(numbers.enumerated())[2...]
+for (offset, _) in numbers[2...].enumerated() {
+    // offset 0, 1, 2... — মূল ইনডেক্স 2, 3, 4 নয়
+}
+```
+
+**অ্যাপে রাখার নিয়ম।** লোড হয়নি বোঝাতে `nil` অ্যারে। খালি ফল বোঝাতে `[]`। `[Any]` টাইপ সেফটি ফেলে দেয়। ভিন্ন জিনিস এক তালিকায় লাগলে enum। SwiftUI-তে `ForEach`-এর `id` ডেটার পরিচয়। ইনডেক্স দিয়ে `id` দিলে মুছলে বা সর্ট করলে ভিউ ভুল রোতে অ্যানিমেট হয়। ডুপ্লিকেট স্ট্রিংয়ে `id: \.self` দুটি রোকে এক ধরে।
+
+`Codable` অ্যারে JSON অ্যারে হয়। এলিমেন্ট এক টাইপ।
+
+## MCQ
+
+**1.** `var beatles = ["John", "Paul", "George", "Ringo"]`। `beatles[1]` কে?
+
+A. John  
+B. Paul  
+C. Ringo  
+D. কম্পাইল এরর, ইনডেক্স ১ থেকে শুরু  
+
+**Answer: B.** প্রথম উপাদান `0`। `1` দ্বিতীয় উপাদান, Paul। `4` হলে রানটাইমে ট্র্যাপ।
+
+**2.** কোন লাইন কম্পাইল হবে?
+
+A. `var t = [25.3]; t.append("Chris")`  
+B. `let a = ["John"]; a.append("Paul")`  
+C. `var albums = [String](); albums.append("Red")`  
+D. `let s = ["A"]; let n = [1]; s[0] + n[0]`  
+
+**Answer: C.** খালি অ্যারেতে `[String]` স্পষ্ট। `Double` অ্যারেতে `String` বসে না। `let`-এ `append` হয় না। `[String]` আর `[Int]` যোগ হয় না।
+
+**3.** `let cities = ["London", "Tokyo", "Rome", "Budapest"]`। `cities.sorted()` পরে `cities[0]` কী?
+
+A. Budapest  
+B. London  
+C. কম্পাইল এরর, `let`-এ `sorted` চলে না  
+D. Tokyo  
+
+**Answer: B.** `sorted()` নতুন অ্যারে দেয়। `cities` আগের মতোই থাকে, তাই `0` London। জায়গাতেই বদলাতে `var` আর `sort()`।
+
+**4.** `presidents.reversed()`-এর টাইপ কী?
+
+A. `[String]`, উপাদান সরে গেছে  
+B. `ReversedCollection<Array<String>>`  
+C. `String`  
+D. খালি অ্যারে  
+
+**Answer: B.** উল্টো পড়ার ভিউ। সাজানো নতুন অ্যারে চাইলে `Array(presidents.reversed())`। জায়গাতেই উল্টোতে `reverse()`।
+
+**5.** `var a = [1, 2, 3]` আর `var b = a`, তারপর `b.append(4)`। `a.count` কত?
+
+A. 4  
+B. 3  
+C. কম্পাইল এরর  
+D. ট্র্যাপ  
+
+**Answer: B.** অ্যারে ভ্যালু টাইপ। `append` ইউনিক কপি করে। `a` থাকে `[1, 2, 3]`। এলিমেন্ট ক্লাস হলে সেই অবজেক্টের প্রপার্টি দুই অ্যারেতেই বদলাত।
+
+**6.** `Array(repeating: Node(), count: 3)`। `nodes[0].value = 1` হলে বাকি দুটি?
+
+A. `0` থাকে, কারণ তিনটি আলাদা `Node`  
+B. `1` হয়, একই রেফারেন্স তিনবার  
+C. কম্পাইল এরর  
+D. অ্যারে কপি অন রাইটে তিন কপি বানিয়ে ফেলে  
+
+**Answer: B.** `repeating` একই মান তিন বার রাখে। ক্লাস মানে একই অবজেক্ট। আলাদা ইনস্ট্যান্স চাইলে `map` দিয়ে প্রতিবার `Node()`।
+
+**7.** খালি অ্যারে থেকে শেষ উপাদান সরাতে কোনটা নিরাপদ?
+
+A. `removeLast()`  
+B. `remove(at: 0)`  
+C. `popLast()`  
+D. `sorted().removeLast()`  
+
+**Answer: C.** `popLast()` খালি হলে `nil`। `removeLast()` আর `remove(at:)` সীমার বাইরে ট্র্যাপ করে। D-তে `sorted()` নতুন অ্যারে, সেটা `let`-এর মতো টেম্পোরারি, `removeLast` সেখানে বসানো যায় না।
+
+**8.** `"swift".sorted()` কী দেয়?
+
+A. `String` `"fistw"`  
+B. `[Character]`, জোড়া লাগালে `"fistw"`  
+C. `["swift"]`  
+D. কম্পাইল এরর, `sorted` শুধু `Array`-তে  
+
+**Answer: B.** `String` হলো `Character`-এর কালেকশন। `sorted()` অ্যারে দেয়। `String(word.sorted())` হলে `"fistw"`।
+
+## Short answer
+
+**প্রশ্ন ১. অ্যারে কীভাবে একসাথে অনেক ডেটা রাখে, আর টাইপ কীভাবে আটকায়?**  
+`Array<Element>` একই `Element`-এর ক্রমযুক্ত তালিকা। লিটারাল `[...]`। খালি হলে `[Int]()` বা `Array<Int>()`। মান দিয়ে শুরু করলে টাইপ infer হয়। ভিতরে দ্বিতীয় টাইপ বসানো যায় না, বের করলেও সেই টাইপই আসে। ডুপ্লিকেট থাকতে পারে। ক্রম অংশ। `[1, 2]` আর `[2, 1]` সমান নয়। ভিন্ন কেস এক তালিকায় লাগলে `[Any]` এড়িয়ে enum রাখুন। না লোড হওয়া আর খালি ফল আলাদা: একটা `nil`, অন্যটা `[]`।
+
+**প্রশ্ন ২. ইনডেক্স আর খরচ কীভাবে বলবেন?**  
+ইনডেক্স `Int`, শূন্য থেকে `count - 1`। সাবস্ক্রিপ্ট O(1), কারণ বাফার টানা। `String`-এর ইনডেক্স `Int` নয় এবং `count` O(n)। অ্যারের `count` O(1)। সীমার বাইরে সাবস্ক্রিপ্ট ট্র্যাপ করে। নিরাপদ পড়া `first`, `last`, `firstIndex(of:)`। `append` শেষে অ্যামরটাইজড O(1)। মাঝে `insert` বা `remove(at:)` পেছনের সব উপাদান সরায়, O(n)। `contains` পুরো তালিকা হাঁটে। বারবার খোঁজা লাগলে সেই ডেটা `Set`-এ রাখা যায়, ক্রম দরকার হলে অ্যারেই থাকে।
+
+**প্রশ্ন ৩. `sorted()` আর `reversed()` মূল তালিকা বদলায় না কেন?**  
+`sorted()` নতুন অ্যারে বানিয়ে বাড়ানো ক্রমে সাজায়। `let`-এও চলে। জায়গাতেই সাজাতে `var` আর `sort()`। `String`-এ ডিফল্ট সর্ট লোকেল মানে না। বড় হাতের অক্ষর আগে আসে। ইউজারের তালিকায় `localizedStandardCompare`। সমান উপাদানের পুরোনো ক্রম ধরে রাখার গ্যারান্টি নেই। `reversed()` উপাদান সরায় না। `ReversedCollection` উল্টো দিক থেকে পড়ে। `[Element]` লাগলে `Array(...)`। জায়গাতেই উল্টোতে `reverse()`।
+
+**প্রশ্ন ৪. কপি অন রাইট কখন আলাদা কপি দেয়, কখন শেয়ার করে?**  
+অ্যারে struct। `var b = a` বাফার শেয়ার করে। `b.append` করলে `b`-এর নিজের বাফার হয়, `a` আগের উপাদান রাখে। এলিমেন্ট ক্লাস হলে দুই অ্যারেতে একই অবজেক্টের রেফারেন্স থাকে। এক পাশের `box.n = 5` অন্য পাশেও দেখা যায়। `Array(repeating: Node(), count: 3)` এক `Node` তিনবার রাখে। `let` অ্যারেতে `append` বা `[i] =` হয় না। ভিতরের ক্লাসের প্রপার্টি বদলানো যায়। কপি অন রাইট লক নয়। এক `var` দুই থ্রেডে লিখলে ডেটা রেস।
+
+**প্রশ্ন ৫. মুছতে মুছতে বা স্লাইস নিয়ে কোন বাগ হয়?**  
+`remove(at: 2)` সেই জায়গার উপাদান দেয় এবং পরের সব ইনডেক্স এক ঘর সামনে আনে। সামনে থেকে ইনডেক্স বাড়িয়ে মুছলে পরের উপাদান এড়িয়ে যান। শর্তে `removeAll(where:)`। `popLast()` খালি অ্যারেতে `nil`। `removeLast()` ট্র্যাপ। `array[1...]` একটি `ArraySlice`, ইনডেক্স মূল অ্যারের। প্রপার্টিতে রাখলে বড় বাফার ধরে থাকে। `enumerated()` স্লাইসে `0` থেকে গোনে, মূল ইনডেক্স থেকে নয়। SwiftUI-তে রো-এর `id` ইনডেক্স হলে সর্ট বা ডিলিটে ভুল সেল অ্যানিমেট হয়।
+
+**প্রশ্ন ৬. `String`-এর `sorted()` অ্যারের মতো কী দেয়?**  
+`String` হলো `Character`-এর কালেকশন। `"swift".sorted()` একটি `[Character]`: `f`, `i`, `s`, `t`, `w`। আবার স্ট্রিং চাইলে `String(letters)`। ফল `"fistw"`। এটা নতুন কালেকশন। মূল `String` বদলায় না। অক্ষরের ক্রম grapheme অনুযায়ী। কম্বিনিং মার্ক আলাদা করে সাজালে চোখে যা দেখা যায়, সেই দৈর্ঘ্যের সাথে গুলিয়ে ফেলবেন না।
+
