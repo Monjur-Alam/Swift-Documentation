@@ -1721,3 +1721,219 @@ D. কম্পাইল এরর, `sorted` শুধু `Array`-তে
 **প্রশ্ন ৬. `String`-এর `sorted()` অ্যারের মতো কী দেয়?**  
 `String` হলো `Character`-এর কালেকশন। `"swift".sorted()` একটি `[Character]`: `f`, `i`, `s`, `t`, `w`। আবার স্ট্রিং চাইলে `String(letters)`। ফল `"fistw"`। এটা নতুন কালেকশন। মূল `String` বদলায় না। অক্ষরের ক্রম grapheme অনুযায়ী। কম্বিনিং মার্ক আলাদা করে সাজালে চোখে যা দেখা যায়, সেই দৈর্ঘ্যের সাথে গুলিয়ে ফেলবেন না।
 
+ডিকশনারিতে ডেটা রাখা ও খোঁজা — ইন্টারভিউ নোট (Google Doc-এ কপি করার জন্য)
+
+# 9. Dictionaries (`[Key: Value]`)
+
+## ৩০ সেকেন্ডে বলার উত্তর
+
+ডিকশনারি মান রাখে কী দিয়ে, ইনডেক্স দিয়ে নয়। একই কী দুবার থাকে না। আবার সেট করলে পুরোনো মান বদলে যায়। সাবস্ক্রিপ্ট `Value?` দেয়। কী না থাকলে `nil`, ক্র্যাশ নয়। `default:` দিয়ে পড়লে কী ঢোকে না। সেই সাবস্ক্রিপ্টে লিখলে বা `+=` করলে ঢোকে। `= nil` কী মুছে দেয়। কী `Hashable` হতে হয়। খোঁজা ও বসানো গড়ে O(1)। ক্রমের গ্যারান্টি নেই। নাম, চাকরি, শহরের মতো ফিক্সড ফিল্ড struct-এ। ডিকশনারি খোলা কী, কাউন্ট বা ক্যাশের জন্য।
+
+## যে পয়েন্টগুলো বলতে হবে
+
+**ইনডেক্স দিয়ে কর্মচারী রাখলে ক্রমই অর্থ।** সরিয়ে ফেললে অর্থ সরে যায়, শেষ ইনডেক্সে ক্র্যাশ হয়।
+
+```swift
+var employee = ["Taylor Swift", "Singer", "Nashville"]
+print("Name: \(employee[0])")
+print("Job title: \(employee[1])")
+print("Location: \(employee[2])")
+
+employee.remove(at: 1)
+print("Job title: \(employee[1])")   // Nashville, ভুল অর্থ
+print("Location: \(employee[2])")    // ট্র্যাপ। ইনডেক্স 2 আর নেই
+```
+
+অ্যারে তখনই, যখন ক্রম বা ডুপ্লিকেট দরকার। ডিকশনারিতে বাঁ পাশ কী, ডান পাশ মান।
+
+```swift
+let employee2 = [
+    "name": "Taylor Swift",
+    "job": "Singer",
+    "location": "Nashville"
+]
+
+print(employee2["name"])        // Optional("Taylor Swift")
+print(employee2["password"])    // nil। ক্র্যাশ নয়
+print(employee2["name", default: "Unknown"])   // Taylor Swift
+```
+
+প্লেগ্রাউন্ডের সতর্কতা `String?` চুপচাপ `Any`-তে যাচ্ছে। `print` যেকোনো কিছু নেয়, তাই অপশনালের লেখা `Optional("Taylor Swift")` হয়ে বেরোয়। মান না থাকার সম্ভাবনা টাইপেই আছে। বিস্তার পরে। আপাতত না থাকলে `default:`।
+
+`default:`-এর এক্সপ্রেশন `@autoclosure`। কী থাকলে ডিফল্ট চলে না। শুধু পড়লে কী ডিকশনারিতে ঢোকে না।
+
+```swift
+var scores = ["Eric": 10]
+let maeves = scores["Maeve", default: 0]   // 0। Maeve ঢোকেনি
+scores["Maeve", default: 0] += 1           // লিখছে, তাই Maeve = 1
+```
+
+**কী ও মানের টাইপ আলাদা হতে পারে।** এক ডিকশনারিতে সব কী এক টাইপ, সব মান এক টাইপ।
+
+```swift
+let hasGraduated = [
+    "Eric": false,
+    "Maeve": true,
+    "Otis": false
+]
+
+let olympics = [
+    2012: "London",
+    2016: "Rio de Janeiro",
+    2021: "Tokyo"
+]
+print(olympics[2012, default: "Unknown"])
+
+var heights = [String: Int]()
+heights["Yao Ming"] = 229
+heights["Shaquille O'Neal"] = 216
+heights["LeBron James"] = 206
+```
+
+খালি লিটারাল `[:]`, টাইপ কনটেক্সট ছাড়া বোঝা যায় না। `[String: Int]()` একই খালি ডিকশনারি।
+
+**এক কী, এক মান।** আবার সেট করলে পুরোনো মান থাকে না।
+
+```swift
+var archEnemies = [String: String]()
+archEnemies["Batman"] = "The Joker"
+archEnemies["Superman"] = "Lex Luthor"
+archEnemies["Batman"] = "Penguin"          // Joker আর নেই
+
+archEnemies["Batman"] = nil                // কী মুছে যায়
+let removed = archEnemies.removeValue(forKey: "Superman")  // আগের মান, না থাকলে nil
+archEnemies.removeAll()
+print(archEnemies.count)                   // 0
+```
+
+`remove(at:)`-এর মতো ট্র্যাপ নেই। `count` কী-এর সংখ্যা, O(1)। `removeAll()` অ্যারের মতোই সব সরায়।
+
+মান নিজে `Optional` হলে সাবস্ক্রিপ্ট দ্বিগুণ অপশনাল হয়। `d[key] = nil` তখনও কী মুছে দেয়। মান হিসেবে `nil` রাখতে `updateValue(_:forKey:)`।
+
+**ক্রম নেই।** `for (key, value) in heights` যে ক্রমে আসবে, সেটা ইনসার্ট অর্ডার নয়। রান বদলালেও ক্রম বদলাতে পারে। UI-তে দেখালে কী সর্ট করে নিন। সমতা ক্রম দেখে না: দুই ডিকশনারি সমান, যদি একই কী-তে একই মান থাকে।
+
+**`Hashable` কী।** `==` মিললে হ্যাশও মিলতে হবে। `String` কী কেস-সেনসিটিভ। Swift-এর `==` ক্যাননিক্যাল equivalence ব্যবহার করে, তাই `"é"` আর `"e" + combining accent` এক কী।
+
+কী কপি হয়ে ভিতরে থাকে। পরে বাইরের struct বদলালে ডিকশনারির কী বদলায় না। কী ক্লাস হলে অবজেক্ট শেয়ার হয়। ঢোকানোর পর যে প্রপার্টি হ্যাশ বদলায়, সেটা বদলালে বাকেট ভেঙে যায়। খুঁজলে আর মেলে না।
+
+```swift
+struct ID: Hashable {
+    let raw: String
+}
+var byID = [ID: String]()
+byID[ID(raw: "emp-1")] = "Taylor"
+```
+
+হাতে `Hashable` লিখলে `hash(into:)` আর `==` একই ফিল্ড ব্যবহার করে।
+
+**গড়ে O(1)।** খোঁজা, বসানো, মুছে ফেলা গড়ে কনস্ট্যান্ট। সব কিছু এক বাকেটে পড়লে O(n)। `first(where:)` হ্যাশ ব্যবহার করে না, পুরো কালেকশন হাঁটে। অ্যারেতে নাম খুঁজতে প্রতিবার O(n)। একই খোঁজা বারবার লাগলে ডিকশনারি।
+
+কপি অন রাইট। `var b = a` শেয়ার করে। `b`-তে কী বসালে `a` আলাদা থাকে। এলিমেন্ট ক্লাস হলে মানের অবজেক্ট শেয়ার হয়। `let` ডিকশনারিতে নতুন কী বসানো যায় না। ভিতরের ক্লাসের প্রপার্টি বদলানো যায়। এক `var` দুই থ্রেডে লিখলে ডেটা রেস।
+
+**ডুপ্লিকেট কী সহ সিকোয়েন্স।**
+
+```swift
+let pairs = [("Eric", 1), ("Eric", 2)]
+let lastWins = Dictionary(pairs, uniquingKeysWith: { _, new in new })
+// Dictionary(uniqueKeysWithValues: pairs) ডুপ্লিকেট কীতে ট্র্যাপ করে
+
+let grouped = Dictionary(grouping: bondMovies, by: { $0.first })
+let labels = heights.mapValues { "\($0) cm" }
+```
+
+**অ্যাপে কোনটা।** ফিল্ড জানা থাকলে struct। কম্পাইলার জানে `location` আছে এবং সেটা `String`, `Optional` নয়।
+
+```swift
+struct Employee {
+    let name: String
+    var job: String
+    let location: String
+}
+```
+
+ডিকশনারি তখন, যখন কী রানটাইমে আসে: ইউজার আইডি অনুযায়ী স্কোর, ক্যাশে, গ্রুপিং। `[String: Any]` JSON-এর কাঁচা অবজেক্ট। অ্যাপের মডেল সেটা নয়। `Codable` struct সীমানায় ডিকোড করুন।
+
+## MCQ
+
+**1.** `employee.remove(at: 1)` পরে `employee[1]` কী? আগে `["Taylor Swift", "Singer", "Nashville"]`।
+
+A. Singer  
+B. Nashville  
+C. `nil`  
+D. কম্পাইল এরর  
+
+**Answer: B.** ইনডেক্স 1 এখন শেষ উপাদান, Nashville। চাকরির অর্থ হারিয়েছে। `employee[2]` ট্র্যাপ করে।
+
+**2.** `employee2["password"]` কী করে?
+
+A. ট্র্যাপ, অ্যারের মতো  
+B. `nil`  
+C. `""`  
+D. `"Unknown"`  
+
+**Answer: B.** সাবস্ক্রিপ্ট `String?`। কী না থাকলে `nil`। `default:` না দিলে `"Unknown"` নিজে আসে না।
+
+**3.** `print(employee2["name"])` কী ছাপে?
+
+A. `Taylor Swift`  
+B. `Optional("Taylor Swift")`  
+C. `nil`  
+D. কম্পাইল এরর  
+
+**Answer: B.** মান `String?`। `print` সেটাকে `Any` হিসেবে নেয়। অপশনালের ডেসক্রিপশনে `Optional(...)` থাকে।
+
+**4.** `var scores = ["Eric": 10]`। শুধু `let n = scores["Maeve", default: 0]`। পরে `scores.count` কত?
+
+A. 2  
+B. 1  
+C. 0  
+D. ট্র্যাপ  
+
+**Answer: B.** পড়ার `default:` কী ঢোকায় না। `scores["Maeve", default: 0] += 1` হলে লিখত, তখন count 2 হতো।
+
+**5.** `archEnemies["Batman"] = "The Joker"`, পরে `archEnemies["Batman"] = nil`। কী থাকে?
+
+A. `"The Joker"`  
+B. `""`  
+C. কী আর নেই  
+D. মান `Optional.none` হিসেবে জমা থাকে  
+
+**Answer: C.** `Value` যখন `String`, `nil` অ্যাসাইন করলে `removeValue`। `Int?` মান জমাতেও এই সাবস্ক্রিপ্ট কী মুছে দেয়। `nil` মান রাখতে `updateValue`।
+
+**6.** কোন কী দুবার দিয়ে ডিকশনারি বানালে ট্র্যাপ করে?
+
+A. `Dictionary(pairs, uniquingKeysWith: { _, new in new })`  
+B. `Dictionary(uniqueKeysWithValues: pairs)`  
+C. `archEnemies["Batman"] = "Penguin"`  
+D. `var d = [String: Int]()`  
+
+**Answer: B.** `uniqueKeysWithValues` ডুপ্লিকেট কী সহ্য করে না। `uniquingKeysWith` কোন মান থাকবে সেটা বলে। সাবস্ক্রিপ্টে আবার সেট করলে পুরোনো মান বদলায়, ট্র্যাপ করে না।
+
+**7.** কর্মচারীর নাম, চাকরি, শহর অ্যাপে কোথায় রাখবেন?
+
+A. `var employee = [String]()`, ইনডেক্স মনে রেখে  
+B. `struct Employee`  
+C. `[String: Any]`, যাতে পরে যেকোনো ফিল্ড ঢোকে  
+D. `[Int]`, পজিশনই কী  
+
+**Answer: B.** ফিল্ড জানা। struct-এ টাইপ ও উপস্থিতি কম্পাইলার দেখে। ডিকশনারি খোলা কী বা ক্যাশের জন্য। `[String: Any]` সেফটি ফেলে দেয়।
+
+## Short answer
+
+**প্রশ্ন ১. অ্যারে, ডিকশনারি, struct — কোনটা কখন?**  
+ক্রম বা ডুপ্লিকেট লাগলে অ্যারে। ইনডেক্স সরে গেলে অর্থও সরে। কী দিয়ে খোঁজা লাগলে ডিকশনারি। এক কী একবার। ফিল্ডের সেট জানা থাকলে struct। `name`, `job`, `location` struct-এ `String`। ডিকশনারিতে প্রতিটি পড়া `String?`, ভুল কী কম্পাইলে ধরা পড়ে না। রানটাইমের আইডি, গ্রুপিং, ক্যাশে ডিকশনারি। UI-তে ডিকশনারির ক্রম ব্যবহার করবেন না। দেখানোর আগে কী সাজান।
+
+**প্রশ্ন ২. সাবস্ক্রিপ্ট অপশনাল দেয় কেন?**  
+কী নাও থাকতে পারে। অ্যারের `0..<count` যেমন জানা সীমা, ডিকশনারিতে সেরকম বন্ধ সীমা নেই। `"password"` পড়া বৈধ কোড এবং ফল `nil`। ক্র্যাশ নয়। `print` সেই `String?`-কে `Any` বানিয়ে `Optional("Taylor Swift")` ছাপে। না থাকলে কী দেখাবেন, সেটা `default:`-এ স্পষ্ট। শুধু পড়লে ডিফল্ট ডিকশনারিতে ঢোকে না। `scores[key, default: 0] += 1` লেখে, তাই কী না থাকলে সেটা তৈরি হয়।
+
+**প্রশ্ন ৩. একই কী আবার সেট করলে কী হয়? `nil` সেট করলে?**  
+দ্বিতীয় মান থাকে। প্রথম মান ফিরে আসে না। `count` বাড়ে না। `= nil` কী সরায়। `removeValue(forKey:)` সরানো মান দেয়, না থাকলে `nil`, ট্র্যাপ করে না। `Value` নিজে `Optional` হলেও সাবস্ক্রিপ্টে `nil` দিলে কী মুছে যায়। মান হিসেবে `nil` রাখতে `updateValue(_:forKey:)`। `removeAll()` সব কী সরায়। `count` O(1)।
+
+**প্রশ্ন ৪. কী কেমন হতে হয়?**  
+`Hashable`। সমান দুটি কী-এর হ্যাশ এক। `String` কেস-সেনসিটিভ। ক্যাননিক্যালি সমান স্ট্রিং এক কী। কী ভিতরে কপি হয়। বাইরের struct পরে বদলালে ডিকশনারি বদলায় না। ক্লাস কী-এর হ্যাশ ফিল্ড ঢোকানোর পর বদলালে বাকেট হারায়। হাতে `Hashable` লিখলে `==` আর `hash(into:)` একই ফিল্ড নেয়। খোঁজা গড়ে O(1)। সংঘর্ষে এক বাকেট O(n)। মান খুঁজতে `first(where:)` পুরো জিনিস হাঁটে।
+
+**প্রশ্ন ৫. ডুপ্লিকেট কী নিয়ে কীভাবে বানাবেন?**  
+`Dictionary(uniqueKeysWithValues:)` ডুপ্লিকেট পেলে ট্র্যাপ করে। `uniquingKeysWith` কোন মান রাখবেন সেটা দেয়। পুরোনো না নতুন। `Dictionary(grouping:by:)` এক কী-এর নিচে `[Element]` জমায়। `mapValues` কী রাখে, মান বদলায়। নতুন ডিকশনারি দেয়। লিটারালে সব কী এক টাইপ, সব মান এক টাইপ। `1` আর `"two"` একসাথে infer হয় না।
+
+**প্রশ্ন ৬. কপি ও থ্রেড কীভাবে ধরবেন?**  
+ডিকশনারি struct। কপি অন রাইট। এক পাশে কী বসালে অন্য কপি আলাদা। মান ক্লাস হলে অবজেক্ট শেয়ার হয়। `let` ডিকশনারিতে সাবস্ক্রিপ্ট অ্যাসাইনমেন্ট হয় না। ভিতরের ক্লাস বদলানো যায়। `Sendable` হলেও শেয়ার করা `var` নিরাপদ নয়। `+=` বা কী বসানো অ্যাটমিক নয়। ফিক্সড মডেল struct-এ রাখুন। ডিকশনারি সীমানার ক্যাশে বা ইনডেক্সে রাখুন।
